@@ -1,12 +1,12 @@
 program fluid1D
 
 	implicit none
-	real, parameter :: x0=0.0, xL=512.0, dx=0.25, tFinal=200, dt = 0.01
-	real, parameter :: D=0.1, Eb=-1.0, xb=128.0
+	real, parameter :: x0=0.0, xL=512.0, dx=0.125, tFinal=200, dt = 0.02
+	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter
 	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew
 	double precision, allocatable, dimension(:) :: af, df, s, snew, afnew, dfnew
-	real :: time
+	real :: time, tempVar1, tempVar2
 	
 	
 	
@@ -23,13 +23,13 @@ program fluid1D
 	np = 0.01*exp(-(x - xb)**2)
 	!print *, ne
 	E_CF(N+1) = Eb
-	!print *,E_CF
 	call calc_electricField(N, dx, ne, np, E, E_CF)
-	!print *, E
 	
 	!Time integration---------------------------------------------------------------
 	time = 0.0
 	iter = 0
+        tempVar1 = 0.0
+        tempVar2 = 0.0
 	print *, 'Starting integration..'
 	do while (time < tFinal)
 		
@@ -47,7 +47,6 @@ program fluid1D
 		ne = ne + 0.5*dt*(afnew + dfnew + snew + af + df + s)
 		np = np + 0.5*dt*(snew + s)
 		call calc_electricField(N, dx, ne, np, E, E_CF)
-		!print *, E
 		
 		if (sum(ne) .gt. 1e10) stop 'Solution Diverging!'
 		print *, time + dt
@@ -55,11 +54,17 @@ program fluid1D
 		if (mod(iter,50) .le. 1e-15) then
 			call writeData(iter, x, ne, np, E, N)
 		end if
+               
 		time = time + dt
 		iter = iter + 1
-	end do
+                !Computing the front velocity using the maximum value of the electron density
+                if (mod(iter,100) .le. 1e-15) then
+                tempVar1 = tempVar2
+                tempVar2 = x(maxloc(ne, dim=1))
+                end if
+        end do
 	print *, "Integration done!"
-	
+        print *, (tempVar2 - tempVar1)/(100*dt)
 	deallocate(x, ne, np, E, E_CF, neNew, npNew, ENew)
 	deallocate(af, df, s, snew, afnew, dfnew)
 
@@ -135,7 +140,7 @@ program fluid1D
 		open(1, file= filename, status='new')
 		write(1, *) 'x ','sigma ', 'rho ', 'E '
 		do i=1,N
-			write(1, *) x(i), e(i), np(i), E(i)
+			write(1, *) x(i), ne(i), np(i), E(i)
 		end do
 		close(1)		
 	end subroutine writeData

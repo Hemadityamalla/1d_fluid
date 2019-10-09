@@ -1,0 +1,3 @@
+rm -f ./fortran_op/*.txt
+gfortran fluid1D.f90 -o fluid1D
+./fluid1D

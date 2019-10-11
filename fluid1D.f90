@@ -1,7 +1,7 @@
 program fluid1D
 
 	implicit none
-	real, parameter :: x0=0.0, xL=512.0, dx=0.125, tFinal=200, dt = 0.02
+	real, parameter :: x0=0.0, xL=512.0, dx=0.0625, tFinal=200, dt = 0.1
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter
 	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew

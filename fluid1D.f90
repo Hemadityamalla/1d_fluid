@@ -1,12 +1,12 @@
 program fluid1D
 
 	implicit none
-	real, parameter :: x0=0.0, xL=512.0, dx=0.0625, tFinal=200, dt = 0.1
+	real, parameter :: x0=0.0, xL=512.0, dx=0.25, tFinal=200, dt = 0.05
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter
 	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew
 	double precision, allocatable, dimension(:) :: af, df, s, snew, afnew, dfnew
-	real :: time, tempVar1, tempVar2
+	real :: time, tempVar1, tempVar2, maxCFL
 	
 	
 	
@@ -30,6 +30,7 @@ program fluid1D
 	iter = 0
         tempVar1 = 0.0
         tempVar2 = 0.0
+        maxCFL = 0.0
 	print *, 'Starting integration..'
 	do while (time < tFinal)
 		
@@ -49,7 +50,12 @@ program fluid1D
 		call calc_electricField(N, dx, ne, np, E, E_CF)
 		
 		if (sum(ne) .gt. 1e10) stop 'Solution Diverging!'
-		print *, time + dt
+                !isnan(tempVar1)
+                !if (sum(isnan(ne)) .gt. 0) stop 'ne is NaN!'
+                do i=1,N
+                        if (isnan(ne(i))) stop 'ne is NaN'
+                end do
+		print *, time + dt, maxCFL
 		!Writing data
 		if (mod(iter,50) .le. 1e-15) then
 			call writeData(iter, x, ne, np, E, N)
@@ -62,6 +68,7 @@ program fluid1D
                 tempVar1 = tempVar2
                 tempVar2 = x(maxloc(ne, dim=1))
                 end if
+                maxCFL = max(maxCFL, maxval(E*(dx/dt)))
         end do
 	print *, "Integration done!"
         print *, (tempVar2 - tempVar1)/(100*dt)

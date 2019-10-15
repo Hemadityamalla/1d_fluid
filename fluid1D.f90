@@ -1,12 +1,13 @@
 program fluid1D
 
 	implicit none
-	real, parameter :: x0=0.0, xL=512.0, dx=0.25, tFinal=200, dt = 0.05
+	real, parameter :: x0=0.0, xL=512.0, dx=0.05, tFinal=200.0, dt = 0.01
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter
 	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew
 	double precision, allocatable, dimension(:) :: af, df, s, snew, afnew, dfnew
 	real :: time, tempVar1, tempVar2, maxCFL
+	real, dimension(20000) :: tStep, fPos
 	
 	
 	
@@ -69,9 +70,22 @@ program fluid1D
                 tempVar2 = x(maxloc(ne, dim=1))
                 end if
                 maxCFL = max(maxCFL, maxval(E*(dx/dt)))
+		!Collecting the front positiions
+		if (iter .le. 20000) then
+		tStep(iter) = time
+		fPos(iter) =  x(maxloc(ne, dim=1))
+		end if
+		
         end do
 	print *, "Integration done!"
-        print *, (tempVar2 - tempVar1)/(100*dt)
+        print *, (tempVar2 - tempVar1)/(100*dt), iter
+	open(8, file= 'frontPos.dat', status='new')
+	write(8, *) 'time ', 'position '
+	do i=1,20000
+		write(8, *) tStep(i), fPos(i)
+	end do
+	close(8)
+	
 	deallocate(x, ne, np, E, E_CF, neNew, npNew, ENew)
 	deallocate(af, df, s, snew, afnew, dfnew)
 

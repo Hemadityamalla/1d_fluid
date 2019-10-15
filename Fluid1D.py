@@ -77,13 +77,13 @@ while t < Tfinal:
     ECC = 0.5*(ECF[:-1]+ECF[1:])
     
     #Saving the solutions every 10 time step
-    if (np.mod(iiter,10)) == 0:
-        print('Saving')
-        np.savetxt(str(iiter)+('.txt'),np.asarray([xCC, neCC,npCC, neCC-npCC, ECC]).T,delimiter=',')
+    #if (np.mod(iiter,10)) == 0:
+    #    print('Saving')
+    #    np.savetxt(str(iiter)+('.txt'),np.asarray([xCC, neCC,npCC, neCC-npCC, ECC]).T,delimiter=',')
     
     #Uncomment below to plot stuff real time
-    #plt.plot(xCC,ECC)
-    #plt.show()
+    plt.plot(xCC,ECC)
+    plt.show()
     
     #This checks if the solution is diverging and stops the script
     if np.isnan(neCC).any():

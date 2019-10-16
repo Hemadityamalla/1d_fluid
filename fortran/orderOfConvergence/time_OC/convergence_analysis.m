@@ -10,11 +10,19 @@ dt = importdata('dt_first.txt',' ',skip_line); %dt = 0.1
 dthalf = importdata('dt_2_first.txt',' ',skip_line); %dt = 0.05
 dtfourth = importdata('dt_4_first.txt',' ',skip_line); %dt = 0.025
 dteighth = importdata('dt_8_first.txt',' ',skip_line); %dt = 0.0125
+dtsixteen = importdata('dt_16_first.txt',' ', skip_line); %dt = 0.00625
+dt32 = importdata('dt_32_first.txt',' ', skip_line); %dt = 0.003125
+
 
 
 %For the electron density (sigma)
 %order1 = log2(norm(dt.data(:,2) - exact.data(:,2))/norm(dthalf.data(:,2) - exact.data(:,2)))
+field = 2; %2,3,4
 
-order2 = log2(norm(dt.data(:,3) - dthalf.data(:,3))/norm(dthalf.data(:,3) - dtfourth.data(:,3)))
+order2 = log2(norm(dt.data(:,field) - dthalf.data(:,field))/norm(dthalf.data(:,field) - dtfourth.data(:,field)))
 
-order3 = log2(norm(dthalf.data(:,3) - dtfourth.data(:,3))/norm(dtfourth.data(:,3) - dteighth.data(:,3)))
+order3 = log2(norm(dthalf.data(:,field) - dtfourth.data(:,field))/norm(dtfourth.data(:,field) - dteighth.data(:,field)))
+
+order4 = log2(norm(dtfourth.data(:,field) - dteighth.data(:,field))/norm(dteighth.data(:,field) - dtsixteen.data(:,field)))
+
+order5 = log2(norm(dteighth.data(:,field) - dtsixteen.data(:,field))/norm(dt32.data(:,field) - dtsixteen.data(:,field)))

@@ -1,0 +1,7 @@
+#/!bin/bash
+rm fortran_op/000042.txt
+for dx in 0.25 0.125 0.0625 0.03125
+do
+	echo $dx | ./fluid_oc
+	mv fortran_op/000042.txt fortran_op/$dx
+done

@@ -10,7 +10,7 @@
 program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
-	real, parameter :: x0=0.0, xL=512.0, dx=0.25, tFinal=200.0, dt = 0.003125
+	real, parameter :: x0=0.0, xL=512.0, tFinal=100.0, dt = 0.01
 
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter !Initializing parameters for arrays and loops
@@ -18,9 +18,9 @@ program fluid1D
 	!Initializing the arrays for the various fields
 	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew
 	double precision, allocatable, dimension(:) :: af, df, s, snew, afnew, dfnew
-	real :: time, tempVar1, tempVar2, maxCFL !Variables used to compute the cfl number and to keep track of time
+	real :: dx, time, tempVar1, tempVar2, maxCFL !Variables used to compute the cfl number and to keep track of time
 	
-	
+	read(*,*) dx
 	
 	N = int((xL - x0)/dx) !Evaluating the number of cells
 
@@ -54,18 +54,18 @@ program fluid1D
 		call calc_diffusionFlux(N, ne, E, dx, D, df)
 
 		!Upate solutions for t_n/2
-		!neNew = ne + dt*(af + df + s)
-		!npNew = np + dt*(s)
-		!call calc_electricField(N, dx, neNew, npNew, ENew, E_CF)
+		neNew = ne + dt*(af + df + s)
+		npNew = np + dt*(s)
+		call calc_electricField(N, dx, neNew, npNew, ENew, E_CF)
 		
 		!Calculating the fluxes and source terms for t_n+1
-		!call calc_advectionFlux(N, neNew, ENew, dx, afnew)
-		!call calc_source(N, neNew, ENew, snew)
-		!call calc_diffusionFlux(N, neNew, ENew, dx, D, dfnew)
+		call calc_advectionFlux(N, neNew, ENew, dx, afnew)
+		call calc_source(N, neNew, ENew, snew)
+		call calc_diffusionFlux(N, neNew, ENew, dx, D, dfnew)
 
 		!Update solution for t_n+1
-		ne = ne + dt*(af + df + s)
-		np = np + dt*(s)
+		ne = ne + dt*(af + df + s + afnew + dfnew + snew)
+		np = np + dt*(s + snew)
 		call calc_electricField(N, dx, ne, np, E, E_CF)
 		
 		!Check and abort if solution is blowing up

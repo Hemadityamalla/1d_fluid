@@ -11,7 +11,7 @@ program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
 	real, parameter :: x0=0.0, xL=512.0, dx=0.1, tFinal=200.0, dt = 0.01
-	real, parameter :: D=0.1, Eb=-0.1, xb=31.0
+	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter !Initializing parameters for arrays and loops
 
 	!Initializing the arrays for the various fields
@@ -24,9 +24,17 @@ program fluid1D
 	
 	N = int((xL - x0)/dx) !Evaluating the number of cells
 
-	!Allocating the arrays
-	allocate(x(N), ne(N), np(N), E(N), E_CF(N+1), neNew(N), npNew(N), ENew(N))
+	!Allocating the arrays and initializing everything with zero
+	allocate(x(N), ne(N+2), np(N+2), E(N+2), E_CF(N+1), neNew(N+2), npNew(N+2), ENew(N+2))
 	allocate(af(N), afnew(N), df(N), dfnew(N), s(N), snew(N))
+	ne = 0.0
+	np = 0.0
+	E_CF = 0.0
+	E = 0.0
+	neNew = 0.0
+	npNew = 0.0
+	ENew = 0.0
+	
 	
 	!Computing the cell center coordinates
 	do i=1,N
@@ -34,10 +42,15 @@ program fluid1D
 	end do
 	
 	!Initial conditions
-	ne = 0.01*exp(-(x - xb)**2)
-	np = 0.01*exp(-(x - xb)**2)
+	ne(2:N+1) = 0.01*exp(-(x - xb)**2)
+	np(2:N+1) = 0.01*exp(-(x - xb)**2)
 	E_CF(N+1) = Eb
 	call calc_electricField(N, dx, ne, np, E, E_CF) !Calculating the electric field at the cell centers
+	!Ghost cells
+	ne(1) = -ne(2)
+	np(1) = -np(2)
+	ne(N+2) = ne(N+1)
+	np(N+2) = ne(N+1)
 	
 	!Time integration---------------------------------------------------------------
 	time = 0.0
@@ -54,9 +67,14 @@ program fluid1D
 		call calc_diffusionFlux(N, ne, E, dx, D, df)
 
 		!Upate solutions for t_n/2
-		neNew = ne + dt*(af + df + s)
-		npNew = np + dt*(s)
+		neNew(2:N+1) = ne(2:N+1) + dt*(af + df + s)
+		npNew(2:N+1) = np(2:N+1) + dt*(s)
 		call calc_electricField(N, dx, neNew, npNew, ENew, E_CF)
+		!Ghost cells
+		neNew(1) = -neNew(2)
+		npNew(1) = -npNew(2)
+		neNew(N+2) = neNew(N+1)
+		npNew(N+2) = npNew(N+1)
 		
 		!Calculating the fluxes and source terms for t_n+1
 		call calc_advectionFlux(N, neNew, ENew, dx, afnew)
@@ -64,9 +82,14 @@ program fluid1D
 		call calc_diffusionFlux(N, neNew, ENew, dx, D, dfnew)
 
 		!Update solution for t_n+1
-		ne = ne + 0.5*dt*(afnew + dfnew + snew + af + df + s)
-		np = np + 0.5*dt*(snew + s)
+		ne(2:N+1) = ne(2:N+1) + 0.5*dt*(afnew + dfnew + snew + af + df + s)
+		np(2:N+1) = np(2:N+1) + 0.5*dt*(snew + s)
 		call calc_electricField(N, dx, ne, np, E, E_CF)
+		!Ghost cells
+		ne(1) = -ne(2)
+		np(1) = -np(2)
+		ne(N+2) = ne(N+1)
+		np(N+2) = ne(N+1)
 		
 		!Check and abort if solution is blowing up
 		if (sum(ne) .gt. 1e10) stop 'Solution Diverging!'
@@ -78,7 +101,7 @@ program fluid1D
 
 		!Writing data every 50 iterations
 		if (mod(iter,50) .le. 1e-15) then
-			call writeData(iter, x, ne, np, E, N)
+			call writeData(iter, x, ne(2:N+1), np(2:N+1), E(2:N+1), N)
 		end if
                
 		!Update time
@@ -88,26 +111,26 @@ program fluid1D
                 !Computing the front velocity using the maximum value of the electron density
                 if (mod(iter,100) .le. 1e-15) then
                 tempVar1 = tempVar2
-                tempVar2 = x(maxloc(ne, dim=1))
+                tempVar2 = x(maxloc(ne(2:N+1), dim=1))
                 end if
-                maxCFL = max(maxCFL, maxval(abs(E)*(dx/dt))) !Computing the max CFL
+                maxCFL = max(maxCFL, maxval(abs(E(2:N+1))*(dx/dt))) !Computing the max CFL
 
 		!Collecting the front positiions
 		if (iter .le. 20000) then
 		tStep(iter) = time
-		fPos(iter) =  x(maxloc(ne, dim=1))
+		fPos(iter) =  x(maxloc(ne(2:N+1), dim=1))
 		end if	
         end do
 	print *, "Integration done!"
         print *, (tempVar2 - tempVar1)/(100*dt), iter !This computes the final front velocity
 
 	!Writing the times and front positions to a file
-	open(8, file= 'frontPos.dat', status='new')
-	write(8, *) 'time ', 'position '
-	do i=1,20000
-		write(8, *) tStep(i), fPos(i)
-	end do
-	close(8)
+! 	open(8, file= 'frontPos.dat', status='new')
+! 	write(8, *) 'time ', 'position '
+! 	do i=1,20000
+! 		write(8, *) tStep(i), fPos(i)
+! 	end do
+! 	close(8)
 	
 	!Deallocating memory for the arrays
 	deallocate(x, ne, np, E, E_CF, neNew, npNew, ENew)
@@ -120,43 +143,49 @@ program fluid1D
 	subroutine calc_advectionFlux(N, ne, E, dx, advectionFlux)
 		implicit none
 		integer, intent(in) :: N
-		double precision, dimension(N), intent(in) :: ne, E
+		double precision, dimension(N+2), intent(in) :: ne, E
 		real, intent(in) :: dx
 		double precision, dimension(N), intent(out) :: advectionFlux
 		integer :: i
 		
-		do i=2,N
-			advectionFlux(i) = (ne(i)*E(i) - ne(i-1)*E(i-1))/dx
-		end do
-		advectionFlux(1) = (ne(1)*E(1))/dx !ne and E at -1 node are taken to be zero
+		!do i=2,N
+		!	advectionFlux(i) = (ne(i)*E(i) - ne(i-1)*E(i-1))/dx
+		!end do
+		!advectionFlux(1) = (ne(1)*E(1))/dx !ne and E at -1 node are taken to be zero
+		
+		advectionFlux = (ne(2:N+1)*E(2:N+1) - ne(1:N)*E(1:N))/dx !This is the upwind discretization
 	end subroutine calc_advectionFlux
 	
 	!To calculate the simple source term
 	subroutine calc_source(N, ne, E, S)
 		implicit none
 		integer, intent(in) :: N
-		double precision, dimension(N), intent(in) :: ne, E
+		double precision, dimension(N+2), intent(in) :: ne, E
 		double precision, dimension(N), intent(out) :: S
 		integer :: i
-		do i=2,N
-			S(i) = ne(i)*abs(E(i))*exp(-1.0/abs(E(i)))
-		end do
-		S(1) = ne(1)*abs(E(1))*exp(-1.0/abs(E(1)))
+		!do i=2,N
+		!	S(i) = ne(i)*abs(E(i))*exp(-1.0/abs(E(i)))
+		!end do
+		!S(1) = ne(1)*abs(E(1))*exp(-1.0/abs(E(1)))
+		
+		S = ne(2:N+1)*abs(E(2:N+1))*exp(-1.0/abs(E(2:N+1)))
 	end subroutine calc_source
 	
 	!To  calculate the diffusion flux using the 2nd order central discretization
 	subroutine calc_diffusionFlux(N, ne, E, dx, D, diffusionFlux)
 		implicit none
 		integer, intent(in) :: N
-		double precision, dimension(N), intent(in) :: ne, E
+		double precision, dimension(N+2), intent(in) :: ne, E
 		real, intent(in) :: dx, D
 		double precision, dimension(N), intent(out) :: diffusionFlux
 		integer :: i
-		do i=2,N-1
-			diffusionFlux(i) = (D/dx**2)*(ne(i+1) - 2.0*ne(i) + ne(i-1))
-		end do
-		diffusionFlux(1) = (D/dx**2)*(ne(2) - 2.0*ne(1))
-		diffusionFlux(N) = (D/dx**2)*(ne(N-1) - ne(N))
+		!do i=2,N-1
+		!	diffusionFlux(i) = (D/dx**2)*(ne(i+1) - 2.0*ne(i) + ne(i-1))
+		!end do
+		!diffusionFlux(1) = (D/dx**2)*(ne(2) - 2.0*ne(1))
+		!diffusionFlux(N) = (D/dx**2)*(ne(N-1) - ne(N))
+		
+		diffusionFlux = (D/dx**2)*(ne(3:N+2) - 2.0*ne(2:N) + ne(1:N)) !Second order central discretization
 		
 	end subroutine calc_diffusionFlux
 	
@@ -164,31 +193,34 @@ program fluid1D
 	subroutine calc_electricField(N, dx, ne, np, ECC, ECF)
 		implicit none
 		integer, intent(in) :: N
-		double precision, dimension(N), intent(in) :: ne, np
-		double precision, dimension(N), intent(out) :: ECC
+		double precision, dimension(N+2), intent(in) :: ne, np
+		double precision, dimension(N+2), intent(out) :: ECC
 		double precision, dimension(N+1), intent(out) :: ECF
 		real, intent(in) :: dx
 		integer :: i
 		do i=1,N
-			ECF(N-i+1) = ECF(N-i+2) + dx*(ne(N-i+1) - np(N-i+1))
+			ECF(N-i+1) = ECF(N-i+2) + dx*(ne(N-i+2) - np(N-i+2))
 		end do
-		do i=1,N
-			ECC(i) = 0.5*(ECF(i) + ECF(i+1)) 
-		end do
+		!ECF(1:N) = ECF(2:N+1) + dx*(ne(2:N+1) - np(2:N+1))-- this is not giving correct values
+		!do i=1,N
+		!	ECC(i) = 0.5*(ECF(i) + ECF(i+1)) 
+		!end do
+		ECC(2:N+1) = 0.5*(ECF(1:N) + ECF(2:N+1))
+
 	end subroutine calc_electricField
 	
 	!To write the data for a given timestep
 	subroutine writeData(timestep, x, ne, np, ECC, N)
 		implicit none
 		integer, intent(in) :: N, timestep
-		double precision, dimension(N), intent(in) :: ne, np, x, ECC
+		double precision, dimension(N), intent(in) :: x, ne, np, ECC
 		integer :: i
 		character(21) :: filename
  	    	write(filename, '(a,i0.6,a)') 'fortran_op/', timestep, '.txt'
 		open(1, file= filename, status='new')
 		write(1, *) 'x ','sigma ', 'rho ', 'E '
 		do i=1,N
-			write(1, *) x(i), ne(i), np(i), E(i)
+			write(1, *) x(i), ne(i), np(i), ECC(i)
 		end do
 		close(1)		
 	end subroutine writeData

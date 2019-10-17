@@ -37,52 +37,71 @@ neCC = np.zeros(len(xCC)+2) #Electron density
 npCC = np.zeros(len(xCC)+2) #Positive ion density
 ECC = np.zeros(len(xCC)+2) #Electric field at cell centers
 ECF = np.zeros(len(xCF)) #Electric field at cell faces
+
+neCChalf = np.zeros(len(xCC)+2) #Electron density	
+npCChalf = np.zeros(len(xCC)+2) #Positive ion density
+ECChalf = np.zeros(len(xCC)+2) #Electric field at cell centers
+ECFhalf = np.zeros(len(xCF)) #Electric field at cell faces
 #Initial conditions
 neCC[1:-1] = 0.01*np.exp(-(xCC - xb)**2)
 npCC[1:-1] = 0.01*np.exp(-(xCC - xb)**2)
 ECF = -Eb*np.ones(len(xCF))
 ECC[1:-1] = 0.5*(ECF[:-1]+ECF[1:]) 
 
+#Initialize ghost cells
+neCC[0] = -neCC[1]
+neCC[-1] = neCC[-2]
+npCC[0] = -npCC[1]
+npCC[-1] = npCC[-2]
+#What about the electric field?
+
+
 t = 0.0
 iiter =1
 while t < Tfinal:
     #Computing the advective flux. East flux- flux on the right cell face & West flux- flux on the left cell face
-    eastFlux = np.multiply(neCC[1:],ECC[1:]) 
-    westFlux = np.multiply(neCC[:-1], ECC[:-1])
-    #Constructing the diffusion matrix to compute the diffusion flux
-    #diffusionMatrix = np.diag(np.ones(len(xCC)-1),1) - 2.0*np.diag(np.ones(len(xCC))) + np.diag(np.ones(len(xCC)-1),-1) #Gives a tridiagonal matrix
-    #diffusionMatrix[-1,-1] = -1.0 #Adjusting to take care of boundary conditions
+    eastFlux = np.multiply(neCC[1:-1],ECC[1:-1]) 
+    westFlux = np.multiply(neCC[:-2], ECC[:-2])
     #Ghalf- flux terms
     Ghalf = (eastFlux - westFlux)/dx + (D/dx**2)*(neCC[2:] - 2.0*neCC[1:-1] + neCC[:-2])
     #Shalf- source term
-    Shalf = np.multiply(np.multiply(neCC, np.abs(ECC)), np.exp(-np.divide(np.ones(len(ECC)),np.abs(ECC))))
+    Shalf = np.multiply(np.multiply(neCC[1:-1], np.abs(ECC[1:-1])), np.exp(-np.divide(np.ones(len(ECC[1:-1])),np.abs(ECC[1:-1]))))
     #Computing the densities at half time step (t_n/2)
-    neCChalf = neCC + dt*(Ghalf + Shalf)
-    npCChalf = npCC + dt*(Shalf)
-    ECFhalf = np.append(ECF[1:] + dx*(neCChalf - npCChalf),-Eb) #This is a simple numerical integration- usually we have to solve the Poisson's equation
-    ECChalf = 0.5*(ECFhalf[:-1]+ECFhalf[1:])
+    neCChalf[1:-1] = neCC[1:-1] + dt*(Ghalf + Shalf)
+    npCChalf[1:-1] = npCC[1:-1] + dt*(Shalf)
+    ECFhalf = np.append(ECF[1:] + dx*(neCChalf[1:-1] - npCChalf[1:-1]),-Eb) #This is a simple numerical integration- usually we have to solve the Poisson's equation
+    ECChalf[1:-1] = 0.5*(ECFhalf[:-1]+ECFhalf[1:])
+    #Updating the ghost cells
+    neCChalf[0] = -neCChalf[1]
+    neCChalf[-1] = neCChalf[-2]
+    npCChalf[0] = -npCChalf[1]
+    npCChalf[-1] = npCChalf[-2]
     
     
     #Evaluating all the fluxes and source terms using the solution from half time step
-    eastFlux = np.multiply(neCChalf, ECChalf)
-    westFlux = np.multiply(np.append(0.0, neCChalf[:-1]), np.append(0.0, ECChalf[:-1]))
-    G = (eastFlux - westFlux)/dx + (D/dx**2)*(diffusionMatrix.dot(neCChalf))
-    S = np.multiply(np.multiply(neCChalf, np.abs(ECChalf)), np.exp(-np.divide(np.ones(len(ECChalf)),np.abs(ECChalf))))
+    eastFlux = np.multiply(neCChalf[1:-1], ECChalf[1:-1])
+    westFlux = np.multiply(neCChalf[:-2], ECChalf[:-2])
+    G = (eastFlux - westFlux)/dx + (D/dx**2)*(neCChalf[2:] - 2.0*neCChalf[1:-1] + neCChalf[:-2])
+    S = np.multiply(np.multiply(neCChalf[1:-1], np.abs(ECChalf[1:-1])), np.exp(-np.divide(np.ones(len(ECChalf[1:-1])),np.abs(ECChalf[1:-1]))))
     
     #Computing the solution at the new time step (t_n+1)
-    neCC = neCC + 0.5*dt*(G + S + Ghalf + Shalf)
-    npCC = npCC + 0.5*dt*(S+ Shalf)
-    ECF = np.append(ECFhalf[1:] + dx*(neCC - npCC),-Eb)
-    ECC = 0.5*(ECF[:-1]+ECF[1:])
+    neCC[1:-1] = neCC[1:-1] + 0.5*dt*(G + S + Ghalf + Shalf)
+    npCC[1:-1] = npCC[1:-1] + 0.5*dt*(S+ Shalf)
+    ECF = np.append(ECFhalf[1:] + dx*(neCC[1:-1] - npCC[1:-1]),-Eb)
+    ECC[1:-1] = 0.5*(ECF[:-1]+ECF[1:])
+    neCC[0] = -neCC[1]
+    neCC[-1] = neCC[-2]
+    npCC[0] = -npCC[1]
+    npCC[-1] = npCC[-2]
     
     #Saving the solutions every 10 time step
-    #if (np.mod(iiter,10)) == 0:
-    #    print('Saving')
-    #    np.savetxt(str(iiter)+('.txt'),np.asarray([xCC, neCC,npCC, neCC-npCC, ECC]).T,delimiter=',')
+    if (np.mod(iiter,10)) == 0:
+        print('Saving')
+        np.savetxt(str(iiter)+('.txt'),np.asarray([xCC, neCC[1:-1],npCC[1:-1], neCC[1:-1]-npCC[1:-1], ECC[1:-1]]).T,delimiter=',')
     
     #Uncomment below to plot stuff real time
-    plt.plot(xCC,ECC)
-    plt.show()
+    #plt.plot(xCC,ECC[1:-1])
+    #plt.show()
     
     #This checks if the solution is diverging and stops the script
     if np.isnan(neCC).any():

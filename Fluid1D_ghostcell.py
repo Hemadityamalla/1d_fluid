@@ -21,13 +21,13 @@ import matplotlib.pyplot as plt
 #Domain setup
 x0 = 0.0
 xL = 512.0
-dx = 0.25
+dx = 0.0625
 nCells = int((xL-x0)/dx) #Number of finite volumes (cells)
 xCF = np.linspace(x0,xL,nCells+1) #Coordinates of cell faces
 xCC = xCF[:-1]+dx*0.5 #Coordinates of cell centers
 #parameters
 D = 0.1
-dt = 0.1
+dt = 0.2*dx
 Eb = 1
 xb = 31 #Position of the initial seed
 Tfinal = 200

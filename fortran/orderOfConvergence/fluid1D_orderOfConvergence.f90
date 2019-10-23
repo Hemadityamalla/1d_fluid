@@ -10,7 +10,7 @@
 program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
-	real, parameter :: x0=0.0, xL=512.0, tFinal=100.0, dt = 0.005
+	real, parameter :: x0=0.0, xL=512.0, tFinal=75.0, dt = 0.0025
 
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter !Initializing parameters for arrays and loops

@@ -10,7 +10,7 @@
 program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
-	real, parameter :: x0=0.0, xL=512.0, dx=0.1, tFinal=200.0, dt = 0.01
+	real, parameter :: x0=0.0, xL=512.0, dx=0.07, tFinal=200.0, dt = 0.01
 	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
 	integer :: i,N,iter, nGhost !Initializing parameters for arrays and loops
 
@@ -126,7 +126,7 @@ program fluid1D
                 tempVar1 = tempVar2
                 tempVar2 = x(maxloc(ne(3:N+2), dim=1))
                 end if
-                maxCFL = max(maxCFL, maxval(abs(E(3:N+2))*(dx/dt))) !Computing the max CFL
+                maxCFL = max(maxCFL, maxval(abs(E(3:N+2))*(dt/dx))) !Computing the max CFL
 
 		!Collecting the front positiions
 		if (iter .le. 20000) then
@@ -161,7 +161,7 @@ program fluid1D
 		implicit none
 		double precision, intent(in) :: r
 		
-		!phi = 0.0 !Upwind 
+		phi = 0.0 !Upwind 
 		!phi = 1.0 !Lax-Wendroff
 		!phi = r !Beam-Warming
 		!phi = 0.5*(1.0 + r) !Fromm
@@ -169,7 +169,7 @@ program fluid1D
 		!phi = (r + abs(r))/(1 + abs(r)) !van Leer
 		!phi = maxval((/0.0, min(1.0, 2*r), min(2.0, r)/)) !supberbee
 		!phi = int(r .gt. 0.0)*min(r, 1.0) + int(r .le. 0.0)*0.0 !minmod
-		phi = max(0.0, min(1.0/3.0 + r/6.0, r)) !koren
+		!phi = max(0.0, min(1.0/3.0 + r/6.0, r)) !koren
 		
 	end function phi
 	

@@ -10,8 +10,8 @@
 program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
-	real, parameter :: x0=0.0, xL=512.0, dx=0.07, tFinal=200.0, dt = 0.01
-	real, parameter :: D=0.1, Eb=-1.0, xb=31.0
+	real, parameter :: x0=0.0, xL=512.0, dx=0.1, tFinal=200.0, dt = 0.01
+	real, parameter :: D=0.0, Eb=-1.0, xb=31.0
 	integer :: i,N,iter, nGhost !Initializing parameters for arrays and loops
 
 	!Initializing the arrays for the various fields
@@ -72,9 +72,9 @@ program fluid1D
 		call calc_diffusionFlux(N,nGhost, ne, E, dx, D, df)
 
 		!Upate solutions for t_n/2
-		neNew(3:N+2) = ne(3:N+2) + dt*(af + df + s)
-		npNew(3:N+2) = np(3:N+2) + dt*(s)
-		call calc_electricField(N,nGhost, dx, neNew, npNew, ENew, E_CF)
+		neNew(3:N+2) = ne(3:N+2) + dt*(af + df)
+		npNew(3:N+2) = np(3:N+2)! + dt*(0.0)
+		!call calc_electricField(N,nGhost, dx, neNew, npNew, ENew, E_CF)
 		!Ghost cells
 		neNew(1) = -neNew(4)
 		neNew(2) = -neNew(3)
@@ -91,9 +91,9 @@ program fluid1D
 		call calc_diffusionFlux(N,nGhost, neNew, ENew, dx, D, dfnew)
 
 		!Update solution for t_n+1
-		ne(3:N+2) = ne(3:N+2) + 0.5*dt*(afnew + dfnew + snew + af + df + s)
-		np(3:N+2) = np(3:N+2) + 0.5*dt*(snew + s)
-		call calc_electricField(N,nGhost, dx, ne, np, E, E_CF)
+		ne(3:N+2) = ne(3:N+2) + 0.5*dt*(afnew + dfnew + af + df)
+		np(3:N+2) = np(3:N+2)! + 0.5*dt*(snew + 0.0)
+		!call calc_electricField(N,nGhost, dx, ne, np, E, E_CF)
 		!Ghost cells
 		ne(1) = -ne(4)
 		ne(2) = -ne(3)

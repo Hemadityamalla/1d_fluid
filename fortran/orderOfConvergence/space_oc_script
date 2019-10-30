@@ -1,7 +1,10 @@
 #/!bin/bash
-rm fortran_op/*.txt
-for dx in 0.25 0.125 0.0625 0.03125 0.015625
+rm fluidOC
+rm -f fortran_op/*
+rm -f space_OC/*.txt
+gfortran fluid1D_orderOfConvergence.f90 -o fluidOC
+for dx in 0.5 0.25 0.125 0.0625 0.03125
 do
 	echo $dx | ./fluidOC
-	mv fortran_op/000042.txt space_OC/$dx
+	mv fortran_op/000042.txt space_OC/$dx.txt
 done

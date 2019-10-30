@@ -10,22 +10,22 @@
 program fluid1D
 	implicit none
 	!Initializing the parameters used for the simulation
-	real, parameter :: x0=0.0, xL=512.0, tFinal=75.0
+	real, parameter :: x0=0.0, xL=512.0, tFinal=75.0, dt = 0.0025
 
-	real, parameter :: D=0.1, Eb=-1.0, xb=50.0
+	real, parameter :: D=0.0, Eb=-1.0, xb=31.0
 	integer :: i,N,iter !Initializing parameters for arrays and loops
 
 	!Initializing the arrays for the various fields
-	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew, neExact
+	double precision, allocatable, dimension(:) :: x, ne, np, E, E_CF, neNew, npNew, ENew
 	double precision, allocatable, dimension(:) :: af, df, s, snew, afnew, dfnew
-	real :: dt, dx, time, tempVar1, tempVar2, maxCFL !Variables used to compute the cfl number and to keep track of time
+	real :: dx, time, tempVar1, tempVar2, maxCFL !Variables used to compute the cfl number and to keep track of time
 	
 	read(*,*) dx
-	dt = 0.0025
+	
 	N = int((xL - x0)/dx) !Evaluating the number of cells
 
 	!Allocating the arrays
-	allocate(x(N), ne(N), np(N), E(N), E_CF(N+1), neNew(N), npNew(N), ENew(N), neExact(N))
+	allocate(x(N), ne(N), np(N), E(N), E_CF(N+1), neNew(N), npNew(N), ENew(N))
 	allocate(af(N), afnew(N), df(N), dfnew(N), s(N), snew(N))
 	
 	!Computing the cell center coordinates
@@ -34,9 +34,8 @@ program fluid1D
 	end do
 	
 	!Initial conditions
-	ne = 0.01*exp(-0.01*(x - xb)**2)
-	neExact = 0.01*exp(-0.01*(x - xb)**2)
-	np = 0.01*exp(-0.01*(x - xb)**2)
+	ne = 0.01*exp(-(x - xb)**2)
+	np = 0.01*exp(-(x - xb)**2)
 	E_CF(N+1) = Eb
 	call calc_electricField(N, dx, ne, np, E, E_CF) !Calculating the electric field at the cell centers
 	
@@ -50,13 +49,13 @@ program fluid1D
 	do while (time < tFinal)
 		
 		!Calculating the fluxes and source terms for t_n/2
-		call calc_advectionFlux(N, ne, E_CF, dx, af)
+		call calc_advectionFlux(N, ne, E, dx, af)
 		!call calc_source(N, ne, E, s)	
 		!call calc_diffusionFlux(N, ne, E, dx, D, df)
 
 		!Upate solutions for t_n/2
-		neNew = ne + 0.5*dt*(af)
-		npNew = np! + 0.5*dt*(s)
+		neNew = ne + dt*(af)
+		npNew = np! + dt*(s)
 		!call calc_electricField(N, dx, neNew, npNew, ENew, E_CF)
 		
 		!Calculating the fluxes and source terms for t_n+1
@@ -67,7 +66,6 @@ program fluid1D
 		!Update solution for t_n+1
 		ne = ne + dt*(af +  afnew)
 		np = np! + dt*(s + snew)
-		neExact = 0.01*exp(-0.01*(x - xb + Eb*time)**2)
 		!call calc_electricField(N, dx, ne, np, E, E_CF)
 		
 		!Check and abort if solution is blowing up
@@ -76,12 +74,12 @@ program fluid1D
                         if (isnan(ne(i))) stop 'ne is NaN'
                 end do
 		!Printing the time step and the maximum CFL for each timestep
-		!print *, time + dt, maxCFL
+		print *, time + dt, maxCFL
 
 		!Writing data every 50 iterations
-		if (mod(iter,50) .le. 1e-15) then
-			call writeData(iter, x, ne, neExact, E, N)
-		end if
+		!if (mod(iter,50) .le. 1e-15) then
+		!	call writeData(iter, x, ne, np, E, N)
+		!end if
 		
 		!Update time
 		time = time + dt
@@ -95,26 +93,25 @@ program fluid1D
 	
 	
 	!Deallocating memory for the arrays
-	deallocate(x, ne, np, E, E_CF, neNew, npNew, ENew, neExact)
+	deallocate(x, ne, np, E, E_CF, neNew, npNew, ENew)
 	deallocate(af, df, s, snew, afnew, dfnew)
 
 !Subroutines used-------------------------------------------------------------------------------------------------------------------------
 
 	contains
 	!To calculate the advection flux using the Upwind scheme
-	subroutine calc_advectionFlux(N, ne, ECF, dx, advectionFlux)
+	subroutine calc_advectionFlux(N, ne, E, dx, advectionFlux)
 		implicit none
 		integer, intent(in) :: N
-		double precision, dimension(N), intent(in) :: ne
-		double precision, dimension(N+1), intent(in) :: ECF
+		double precision, dimension(N), intent(in) :: ne, E
 		real, intent(in) :: dx
 		double precision, dimension(N), intent(out) :: advectionFlux
 		integer :: i
 		
 		do i=2,N
-			advectionFlux(i) = (ne(i)*ECF(i+1) - ne(i-1)*ECF(i))/dx
+			advectionFlux(i) = (ne(i)*E(i) - ne(i-1)*E(i-1))/dx
 		end do
-		advectionFlux(1) = (ne(1)*ECF(2) + ne(1)*ECF(1))/dx !ne and E at -1 node are taken such that ne is zero at the cell boundary
+		advectionFlux(1) = (ne(1)*E(1))/dx !ne and E at -1 node are taken to be zero
 	end subroutine calc_advectionFlux
 	
 	!To calculate the simple source term

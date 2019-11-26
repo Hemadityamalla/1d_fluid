@@ -1,4 +1,4 @@
 rm -f ./fortran_op/*.txt
 rm -f fluid1D
-gfortran fluid1D.f90 -o fluid1D
+gfortran fluid1D_dim.f90 -o fluid1D
 ./fluid1D
